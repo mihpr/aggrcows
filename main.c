@@ -97,24 +97,9 @@ void read_test_case(FILE * fp, int *p_num_stalls, int *p_num_cows, uint32_t *p_s
     }
 }
 
-
-void bubble_sort_uint32(uint32_t *arr, int n)
+int cmp_stalls (const void *a, const void *b)
 {
-   int i, j;
-   uint32_t temp;
-   for (i = 0; i < n-1; i++)
-   {
-       // Last i elements are already in place
-       for (j = 0; j < n-i-1; j++)
-       {
-           if (arr[j] > arr[j+1])
-           {
-                temp = arr[j];
-                arr[j] = arr[j+1];
-                arr[j+1] = temp;
-           }
-       }
-   }
+   return (*(int*)a - *(int*)b);
 }
 
 uint32_t solve(int num_stalls, int num_cows, uint32_t *p_stall)
@@ -123,8 +108,8 @@ uint32_t solve(int num_stalls, int num_cows, uint32_t *p_stall)
     int i, j;
     int cows_left = num_cows; // a counter for cows not placed yet into the stalls
 
-    // Stalls are unsorted, they should be sorted for convenience
-    bubble_sort_uint32(&p_stall[0], num_stalls);
+    // Stalls might be unsorted, sort them
+    qsort(&p_stall[0], num_stalls, sizeof(p_stall[0]), cmp_stalls);
 
     // There are at least 2 cows and they are placed at the first and the last stalls
     p_stall[0] |= COW_PLACED_BIT_MASK;
@@ -139,7 +124,7 @@ uint32_t solve(int num_stalls, int num_cows, uint32_t *p_stall)
     {
         uint32_t left_distance, right_distance, min_distance; // metrics of current stall
         best_known_place_distance = 0; // distance to the nearest cow
-        int best_known_place_idx = -1; // index in array aStall
+        int best_known_place_idx = -1; // index in array of stalls
         for (i = 0; i < num_stalls; i++)
         {
             // If a cow is placed here, it is impossible to place another one here, skip this stall
@@ -249,7 +234,7 @@ int main()
 //        dbg_print_stalls(&a_stall[0], num_stalls);
 
         uint32_t result = solve(num_stalls, num_cows, &a_stall[0]);
-        printf("Result: %u\n\n", result);
+        printf("solve result: %u\n\n", result);
     }
 
     fclose(fp);
