@@ -102,108 +102,72 @@ int cmp_stalls (const void *a, const void *b)
    return (*(int*)a - *(int*)b);
 }
 
+int place_cows(int num_stalls, int num_cows, uint32_t *p_stall, uint32_t min_distance)
+{
+    // Try placing all the cows in stalls starting from the stall with the minimal number and
+    // ensuring that the distance between any two neighbour cows is greater or equal to the given minimal distance.
+
+    // There are at least 2 cows.
+    // The first stall is taken by the first cow. Start from the second stall and the second cow (with index 1).
+    int stall_idx;
+    int last_taken_stall_idx = 0;
+    int cows_placed = 1;
+    for (stall_idx = 1; stall_idx < num_stalls && cows_placed < num_cows; stall_idx++)
+    {
+        // Calculate the distance between the current stall and the stall, where the previous cow was placed
+        uint32_t distance = p_stall[stall_idx] - p_stall[last_taken_stall_idx];
+        // Place current cow, in case the distance is at least the given minimal distance
+        if (distance >= min_distance)
+        {
+            cows_placed++;
+            last_taken_stall_idx = stall_idx;
+        }
+    }
+
+//    return cows_placed;
+    if (cows_placed == num_cows && (stall_idx + 1) == num_stalls)
+    {
+        return 0; // all cows placed, no stalls left
+    }
+    else if (cows_placed == num_cows)
+    {
+        return 1; // all cows placed, some stalls left
+    }
+    else
+    {
+        return -1; // not enough stalls to place the cows
+    }
+}
+
 uint32_t solve(int num_stalls, int num_cows, uint32_t *p_stall)
 {
-    uint32_t best_known_place_distance;
-    int i, j;
-    int cows_left = num_cows; // a counter for cows not placed yet into the stalls
-
     // Stalls might be unsorted, sort them
     qsort(&p_stall[0], num_stalls, sizeof(p_stall[0]), cmp_stalls);
 
-    // There are at least 2 cows and they are placed at the first and the last stalls
-    p_stall[0] |= COW_PLACED_BIT_MASK;
-    p_stall[num_stalls-1] |= COW_PLACED_BIT_MASK;
-    cows_left -= 2;
+    uint32_t min = 1;
+    uint32_t max = p_stall[num_stalls - 1] - p_stall[0];
+    uint32_t mid = (max - min) / 2;
 
-    // While there are still cows to be placed,
-    // loop through all stalls and find the one, which is farthermost from other cows.
-    // Place the a new cow there.
-    // A cow will be not placed, when no cows are left. The last iteration is for calculating the minimal distance.
-    while (cows_left >= 0)
+
+    while (min <= max)
     {
-        uint32_t left_distance, right_distance, min_distance; // metrics of current stall
-        best_known_place_distance = 0; // distance to the nearest cow
-        int best_known_place_idx = -1; // index in array of stalls
-        for (i = 0; i < num_stalls; i++)
+        mid = (max - min) / 2;
+        printf("mid = [%u]\n", mid);
+        int place_result = place_cows(num_stalls, num_cows, p_stall, mid);
+        if (place_result == 1)
         {
-            // If a cow is placed here, it is impossible to place another one here, skip this stall
-            if (p_stall[i] & COW_PLACED_BIT_MASK)
-            {
-                if (cows_left > 0)
-                {
-                    continue;
-                }
-
-            }
-
-            // Calculate distance from this stall to the nearest cow to the left (in the direction with lower index).
-            left_distance = 0;
-            if (i > 0) // if not the leftmost position
-            {
-                for (j = i-1; j >= 0; j--) // search for a placed cow
-                {
-                    if (p_stall[j] & COW_PLACED_BIT_MASK)
-                    {
-                        left_distance = (p_stall[i] & COW_POSITION_MASK) - (p_stall[j] & COW_POSITION_MASK);
-                        break;
-                    }
-                }
-            }
-
-            // Calculate distance from this stall to the nearest cow to the right (in the direction with higher index).
-            right_distance = 0;
-            if (i < (num_stalls-1)) // if not the rightmost position
-            {
-                for (j = i+1; j < num_stalls; j++) // search for a placed cow
-                {
-                    if (p_stall[j] & COW_PLACED_BIT_MASK)
-                    {
-                        right_distance = (p_stall[j] & COW_POSITION_MASK) - (p_stall[i] & COW_POSITION_MASK);
-                        break;
-                    }
-                }
-
-            }
-
-            // Find distance to the nearest cow to the left or to the right
-            if (right_distance < left_distance)
-            {
-                min_distance = right_distance;
-            }
-            else
-            {
-                min_distance = left_distance;
-            }
-
-            // If the new found position is better than the current best known position, then update it
-            if (min_distance > best_known_place_distance)
-            {
-                best_known_place_distance = min_distance;
-                best_known_place_idx = i;
-            }
-
-            // printf("%i, left_distance %u, right_distance %u, min_distance: %u\n", i, left_distance, right_distance, min_distance);
-            // printf("best_known_place_distance %u, best_known_place_idx: %i\n\n", best_known_place_distance, best_known_place_idx);
+            min = mid + 1; // all cows placed, some stalls left
         }
-
-        // Place the cow
-        if (cows_left > 0)
+        else if (place_result == -1)
         {
-            p_stall[best_known_place_idx] |= COW_PLACED_BIT_MASK;
+            max = mid - 1; // // not enough stalls to place the cows
         }
-
-//        printf("Result, cows left: %i\n", cows_left);
-//        for (i = 0; i < num_stalls; i++)
-//        {
-//            printf("[%d] 0x%08X | %u\n", i, aStall[i], aStall[i] & COW_POSITION_MASK);
-//
-//        }
-
-        cows_left--;
+        else
+        {
+            return mid;
+        }
     }
-
-    return best_known_place_distance;
+    return mid;
 }
 
 int main()
